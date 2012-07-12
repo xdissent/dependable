@@ -46,15 +46,18 @@ You can pass in mock or alternate versions of a module if you want
 
 It is hard to remember how to construct and configure the dependencies when you want to use your module. This should be automatic.  Here is an example
 
-    # robot.coffee
+robot.coffee
+
     module.exports = (greetings) ->
       hello: -> greetings.hello("world")
 
-    # greetings.coffee
+greetings.coffee
+
     module.exports = (language) ->
       ...
 
-    # app.coffee: or every time you want to use it:
+app.coffee
+    # you have to do this in every file you want to use robot
     Greetings = require "greetings"
     greetings = Greetings("en")
 
@@ -73,16 +76,18 @@ Dependable automates this process. In the following example, you don't need to r
 
 
 robot.coffee
+
     module.exports = (greetings) ->
       hello: -> greetings.hello("world")
 
 greetings.coffee
+
     module.exports = (language) ->
       ...
 
 app.coffee
 
-    # create the container
+    # create the container, you only have to do this once.
     container = require("dependable").container
     deps = container()
     deps.register "language", "en"
