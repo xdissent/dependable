@@ -57,6 +57,7 @@ greetings.coffee
       ...
 
 app.coffee
+
     # you have to do this in every file you want to use robot
     Greetings = require "greetings"
     greetings = Greetings("en")
@@ -70,7 +71,7 @@ app.coffee
 
 *This gets much worse* when your dependencies have dependencies of their own. You have to remember in which order to configure them so you can pass them into each other. 
 
-### Dependenable
+### Using Dependenable
 
 Dependable automates this process. In the following example, you don't need to register the modules in order, or do it more than once (it will work for dependencies of dependencies)
 
@@ -99,7 +100,18 @@ app.coffee
     itsAliiiive = -> 
       console.log robot.hello()
 
+### Using Dependable's Load
+
+You can load files or directories instead of registering by hand. See below. 
+
 ## Reference
 
+`container.register(name, function)` - registers a dependency by name. `function` can be a function that takes dependencies and returns anything, or an object itself with no dependencies.
+
+`container.load(fileOrFolder)` - registers a file, using its file name as the name, or all files in a folder. Does not follow sub directories
+
+`container.get(name)` - returns a module by name, with all dependencies injected
+
+`container.resolve(cb)` - calls cb like a dependency function, injecting any dependencies found in the signature
 
 
