@@ -2,6 +2,9 @@
   "name": "dependable",
   "version": "0.0.0",
   "main": "index.js",
+  "author": "Sean Hess",
+  "repository": { "url": "git@github.com:idottv/dependable.git" },
+  "main" : "index.coffee",
   "scripts": {
     "test": "node_modules/.bin/mocha -R spec --compilers coffee:coffee-script test.coffee"
   },
