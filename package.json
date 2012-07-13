@@ -1,6 +1,6 @@
 {
   "name": "dependable",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "index.js",
   "author": "Sean Hess",
   "repository": { "url": "git@github.com:idottv/dependable.git" },
