@@ -14,7 +14,7 @@ exports.container = ->
     factories[name] = toFactory func
 
   load = (file) ->
-    exists = fs.existsSync file
+    exists = path.existsSync file
     if exists
       stats = fs.statSync file
       if stats.isDirectory() then return loaddir file
