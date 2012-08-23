@@ -14,7 +14,7 @@ exports.container = ->
     factories[name] = toFactory func
 
   load = (file) ->
-    exists = path.existsSync file
+    exists = fs.existsSync file
     if exists
       stats = fs.statSync file
       if stats.isDirectory() then return loaddir file
@@ -97,3 +97,4 @@ exports.container = ->
   container.register "_container", container
 
   return container
+
