@@ -171,6 +171,16 @@ describe 'inject', ->
     deps = container()
     assert.equal deps.get('_container'), deps
 
+  describe 'cache', ->
+    it 'should re-use the same instance', ->
+      deps = container()
+      deps.register "a", -> {one: "one"}
+      a = deps.get "a"
+      assert.deepEqual a, {one: "one"}
+      assert.notEqual a, {one: "one"}
+      a2 = deps.get "a"
+      assert.equal a, a2
+
   describe 'overrides', ->
     it 'should override a dependency', ->
       deps = container()

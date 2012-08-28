@@ -102,7 +102,28 @@ app.coffee
 
 ### Using Dependable's Load
 
-You can load files or directories instead of registering by hand. See below. 
+You can load files or directories instead of registering by hand. See [Reference](#reference)
+ 
+### Overriding Dependencies for Testing
+
+When testing, you usually want most dependencies loaded normally, but to mock others. You can use overrides for this. In the example below, `User` depends on `Friends.getInfo` for it's `getFriends` call. By setting `Friends` to `MockFriends` we can stub the dependency, but any other dependencies `User` has will be passed in normally.
+
+    # boostrap.coffee
+    deps = container()
+    deps.register "Friends", require('./Friends')
+    deps.register "User", require('./User')
+
+    # test.coffee
+    describe 'User', ->
+      it 'should get friends plus info', (done) ->
+
+        MockFriends =
+          getInfo: (id, cb) -> cb null, {some:"info"}
+
+        User = deps.get "User", {Friends: MockFriends}
+        User.getFriends "userId", (err, friends) ->
+          # assertions
+          done()
 
 ## Reference
 
@@ -110,7 +131,7 @@ You can load files or directories instead of registering by hand. See below.
 
 `container.load(fileOrFolder)` - registers a file, using its file name as the name, or all files in a folder. Does not follow sub directories
 
-`container.get(name)` - returns a module by name, with all dependencies injected
+`container.get(name, overrides = {})` - returns a module by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registerd. 
 
 `container.resolve(cb)` - calls cb like a dependency function, injecting any dependencies found in the signature
 
