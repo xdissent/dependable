@@ -167,6 +167,39 @@ describe 'inject', ->
     assert.equal asdf.a, "a"
     assert.equal asdf.b, "b"
 
+  it 'should inject the container (_container)', ->
+    deps = container()
+    assert.equal deps.get('_container'), deps
+
+  describe 'overrides', ->
+    it 'should override a dependency', ->
+      deps = container()
+      deps.register "a", (b) -> value: b
+      deps.register "b", "b"
+      a = deps.get "a", {b: "henry"}
+      assert.equal a.value, "henry"
+
+    it 'should not cache when you override', ->
+      deps = container()
+      deps.register "a", (b) -> value: b
+      deps.register "b", "b"
+
+      overridenA = deps.get "a", {b: "henry"}
+      a = deps.get "a"
+      assert.notEqual a.value, "henry", 'it cached the override value'
+      assert.equal a.value, "b"
+
+    it 'should ignore the cache when you override', ->
+      deps = container()
+      deps.register "a", (b) -> value: b
+      deps.register "b", "b"
+
+      a = deps.get "a"
+      overridenA = deps.get "a", {b: "henry"}
+      assert.notEqual overridenA.value, "b", 'it used the cached value'
+      assert.equal overridenA.value, "henry"
+
+
   describe 'file helpers', ->
     it 'should let you register a file', (done) ->
       afile = path.join os.tmpDir(), "A.js"
@@ -220,12 +253,9 @@ describe 'inject', ->
             done()
 
     it 'should let you load a file without an extension'
-    it 'should inject the container (_container)'
-    it 'should override the whole object tree without caching when you override'
-
     it 'should load a folder with a file with parse errors without accidentally trying to load the folder as a file'
-
     it 'should not crash if trying to load something as a file without an extension (crashed on fs.stat)'
+
 
 
   describe 'simple dependencies', ->

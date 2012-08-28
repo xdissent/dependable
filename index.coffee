@@ -54,7 +54,9 @@ exports.container = ->
 
   # recursively resolve it!
   # TODO add visitation / detect require loops
-  get = (name, overrides = {}, visited = []) ->
+  get = (name, overrides, visited = []) ->
+
+    isOverridden = overrides?
 
     # check for circular dependencies
     if haveVisited visited, name
@@ -66,16 +68,22 @@ exports.container = ->
       throw new Error "dependency '#{name}' was not registered"
 
     # use the one you already created
-    if factory.instance? then return factory.instance
-    
+    if factory.instance? and not isOverridden
+      return factory.instance
+
     # apply args to the right?
     dependencies = factory.required.map (name) ->
-      if overrides[name]?
-        overrides[name]
+      if overrides?[name]?
+        overrides?[name]
       else
         get name, overrides, visited
 
-    factory.instance = factory.func dependencies...
+    instance = factory.func dependencies...
+
+    if not isOverridden
+      factory.instance = instance
+
+    return instance
 
   haveVisited = (visited, name) ->
     isName = (n) -> n is name
