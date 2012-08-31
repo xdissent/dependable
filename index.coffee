@@ -1,10 +1,13 @@
 path = require 'path'
 fs = require 'fs'
 
+existsSync = fs.existsSync ? path.existsSync
+
 # simple dependency injection. No nesting, just pure simplicity
 exports.container = ->
 
   factories = {}
+
 
   ## REGISTER / PARSE ################################################
 
@@ -14,7 +17,7 @@ exports.container = ->
     factories[name] = toFactory func
 
   load = (file) ->
-    exists = fs.existsSync file
+    exists = existsSync file
     if exists
       stats = fs.statSync file
       if stats.isDirectory() then return loaddir file
