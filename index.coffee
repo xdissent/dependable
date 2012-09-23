@@ -45,9 +45,10 @@ exports.container = ->
       required: []
 
   argList = (func) ->
-    match = func.toString().match /function.*?\((.*?)\)/
+    # match over multiple lines
+    match = func.toString().match /function.*?\(([\s\S]*?)\)/
     if not match? then throw new Error "could not parse function arguments: #{func?.toString()}"
-    required = match[1].split(", ").filter(notEmpty)
+    required = match[1].split(",").filter(notEmpty).map((str) -> str.trim())
     return required
 
   notEmpty = (a) -> a
