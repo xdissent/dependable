@@ -32,7 +32,7 @@ exports.container = ->
     filenames = fs.readdirSync dir
     files = filenames.map (file) -> path.join dir, file
     for file in files
-      continue unless file.match /\.(js|coffee)/
+      continue unless file.match /\.(js|coffee)$/
       stats = fs.statSync file
       if stats.isFile() then loadfile file
 
