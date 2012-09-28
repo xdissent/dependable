@@ -10,7 +10,7 @@ A minimalist dependency injection framework for javascript (fully tested for nod
 
 ## Documentation
 
-### What is Dependency Injectino
+### What is Dependency Injection
 In CommonJS, modules are normally defined like one of the following
 
     exports.hello = -> "hello world"
