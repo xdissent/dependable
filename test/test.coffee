@@ -209,6 +209,14 @@ describe 'inject', ->
       assert.notEqual overridenA.value, "b", 'it used the cached value'
       assert.equal overridenA.value, "henry"
 
+    it 'should override on resolve', (done) ->
+      deps = container()
+      deps.register "a", (b) -> value: b
+      deps.register "b", "b"
+      deps.resolve {b: "bob"}, (a) ->
+        assert.equal a.value, "bob"
+        done()
+
 
   describe 'file helpers', ->
     it 'should let you register a file', (done) ->

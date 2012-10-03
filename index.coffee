@@ -95,9 +95,12 @@ exports.container = ->
 
   ## RESOLVE ##########################################################
 
-  resolve = (func) ->
+  resolve = (overrides, func) ->
+    if not func
+      func = overrides
+      overrides = null
     register "__temp", func
-    get "__temp"
+    get "__temp", overrides
 
   container =
     get: get

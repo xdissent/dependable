@@ -91,7 +91,6 @@ app.coffee
     # create the container, you only have to do this once.
     container = require("dependable").container
     deps = container()
-    deps.register "language", "en"
     deps.register "greetings", require("greetings")
     deps.register "robot", require("robot")
 
@@ -133,6 +132,9 @@ When testing, you usually want most dependencies loaded normally, but to mock ot
 
 `container.get(name, overrides = {})` - returns a module by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registerd. 
 
-`container.resolve(cb)` - calls cb like a dependency function, injecting any dependencies found in the signature
+`container.resolve([overrides,] cb)` - calls cb like a dependency function, injecting any dependencies found in the signature
+
+    deps.resolve (User) ->
+      # do something with User
 
 
