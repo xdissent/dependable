@@ -282,6 +282,16 @@ describe 'inject', ->
       deps.register "a", "a"
       assert.equal deps.get("a"), "a"
 
+  describe 'registering a hash', ->
+    it 'should register a hash of key : dep pairs', ->
+      deps = container()
+      deps.register {
+        a: "a"
+        b: "b"
+      }
+      assert.equal deps.get("a"), "a"
+      assert.equal deps.get("b"), "b"
+
   describe 'nested containers', ->
     it 'should inherit deps from the parent'
 
