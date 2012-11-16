@@ -13,6 +13,14 @@ exports.container = ->
 
   # register it! Parse it for dependencies
   register = (name, func) ->
+    if name == Object name
+      hash = name
+      for name, func of hash
+        registerOne name, func
+    else
+      registerOne name, func
+
+  registerOne = (name, func) ->
     if not func? then throw new Error "cannot register null function"
     factories[name] = toFactory func
 
