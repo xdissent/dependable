@@ -128,6 +128,8 @@ When testing, you usually want most dependencies loaded normally, but to mock ot
 
 `container.register(name, function)` - registers a dependency by name. `function` can be a function that takes dependencies and returns anything, or an object itself with no dependencies.
 
+`container.register(hash)` - registers a hash of names and dependencies. Useful for config.
+
 `container.load(fileOrFolder)` - registers a file, using its file name as the name, or all files in a folder. Does not follow sub directories
 
 `container.get(name, overrides = {})` - returns a module by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registerd. 
