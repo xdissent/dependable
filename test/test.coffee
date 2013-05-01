@@ -229,14 +229,14 @@ describe 'inject', ->
       bcode = """
         module.exports = function(A) { return A + 'b' }
       """
-      fs.writeFile afile, acode, {mode: "0o0775"}, (err) ->
+      fs.writeFile afile, acode, (err) ->
         assert.ifError (err)
         deps = container()
         deps.load afile
         a = deps.get 'A'
         assert.equal a, 'a'
 
-        fs.writeFile bfile, bcode, {mode: "0o0775"}, (err) ->
+        fs.writeFile bfile, bcode, (err) ->
           assert.ifError (err)
           deps.load bfile
           b = deps.get 'B'
@@ -259,9 +259,9 @@ describe 'inject', ->
 
       fs.mkdir dir, (err) ->
         # ignore err, if it already exists
-        fs.writeFile afile, acode, {mode: "0o0775"}, (err) ->
+        fs.writeFile afile, acode, (err) ->
           assert.ifError (err)
-          fs.writeFile bfile, bcode, {mode: "0o0775"}, (err) ->
+          fs.writeFile bfile, bcode, (err) ->
             assert.ifError (err)
 
             deps = container()
