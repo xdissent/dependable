@@ -33,7 +33,10 @@ exports.container = ->
 
   loadfile = (file) ->
     module = file.replace(/\.\w+$/, "")
-    name = path.basename(module)
+
+    # Remove dashes from files and camelcase results
+    name = path.basename(module).replace(/\-(\w)/g, (match, letter) -> letter.toUpperCase())
+
     register name, require(module)
 
   loaddir = (dir) ->
