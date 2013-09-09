@@ -11,7 +11,7 @@
     "test": "node_modules/.bin/mocha -R spec --compilers coffee:coffee-script test/*",
     "prepublish": "node_modules/.bin/coffee -c index.coffee"
   },
-  "license": "BSD",
+  "license": "MIT",
   "dependencies": {
   },
   "devDependencies": {
