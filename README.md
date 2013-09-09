@@ -13,7 +13,7 @@ var dependable = require('dependable'),
     container = dependable.container();
 ```
 
-## Register some dependencies
+### Register some dependencies
 
 Register a few dependencies for later use (a string and an object):
 
@@ -25,7 +25,7 @@ container.register('transport', {
 });
 ```
 
-## Register a dependency that depends on other dependencies
+### Register a dependency that has other dependencies
 
 When the argument is a function, the function's arguments are automatically
 populated with the correct dependencies, and the return value of the function
@@ -47,7 +47,7 @@ container.register('song', function (occupation, transport, legalStatus) {
 });
 ```
 
-## Register a dependency out-of-order
+### Register a dependency out-of-order
 
 `song` depends on a `legalStatus`, which hasn't been registered yet.
 Dependable resolves dependencies lazily, so we can define this dependency
@@ -60,7 +60,7 @@ container.register('legalStatus', {
 });
 ```
 
-## Resolve a dependency and use it
+### Resolve a dependency and use it
 
 Like with container.register, the function arguments are automatically resolved, along
 with their dependencies:
@@ -76,7 +76,7 @@ container.resolve(function (song) {
 });
 ```
 
-## Re-register dependencies
+### Re-register dependencies
 
 As it stands, `song` returns boring, non-catchy lyrics. One way to change its behavior
 is to re-register its dependencies:
@@ -99,7 +99,7 @@ This is really useful in a number of situations:
 1. A container can register configuration parameters for an application---for example, a port---and allows them to be changed later
 2. Dependencies can be replaced with mock objects in order to test other dependencies
 
-## Override dependencies at resolve time
+### Override dependencies at resolve time
 
 It's also possible to override dependencies at resolve time:
 
