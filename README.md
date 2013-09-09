@@ -121,15 +121,25 @@ container.resolve({ transport: horse }, function (wanted) {
 
 Sounds like a hit!
 
-## Reference
+## API
 
-`container.register(name, function)` - registers a dependency by name. `function` can be a function that takes dependencies and returns anything, or an object itself with no dependencies.
+`container.register(name, function)` - Registers a dependency by name. `function` can be a function that takes dependencies and returns anything, or an object itself with no dependencies.
 
-`container.register(hash)` - registers a hash of names and dependencies. Useful for config.
+`container.register(hash)` - Registers a hash of names and dependencies. This is useful for setting configuration constants.
 
-`container.load(fileOrFolder)` - registers a file, using its file name as the name, or all files in a folder. Does not follow sub directories
+`container.load(fileOrFolder)` - Registers a file, using its file name as the name, or all files in a folder. Does not traverse subdirectories.
 
-`container.get(name, overrides = {})` - returns a module by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registerd. 
+`container.get(name, overrides = {})` - Returns a dependency by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registerd. 
 
-`container.resolve([overrides,] cb)` - calls cb like a dependency function, injecting any dependencies found in the signature
+`container.resolve(overrides={}, cb)` - Calls `cb` like a dependency function, injecting any dependencies found in the signature. Like `container.get`, this supports overrides.
+
+## Development
+
+Dependable is written in coffeescript. To generate javascript, run `npm run prepublish`.
+
+Tests are written with mocha. To run the tests, run `npm test`.
+
+## License
+
+BSD
 
