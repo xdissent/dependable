@@ -4,40 +4,122 @@ A minimalist dependency injection framework for node.js.
 
 ## Example
 
-`robot.js`:
+### Create a container
+
+Create a new container by calling `dependable.container`:
+
 ```js
-module.exports = function (greetings) {
-  return {
-    hello: function () { return greetings.hello("world"); }
-  };
-};
+var dependable = require('dependable'),
+    container = dependable.container();
 ```
 
-`greetings.js`:
+## Register some dependencies
+
+Register a few dependencies for later use (a string and an object):
 
 ```js
-module.exports = function (language) {
-  if (language === 'en') {
-    return {
-      hello: function (place) { return "hello " + friend; }
-    };
-  }
-  throw new Error('ENOTIMPLEMENTED');
-};
-```
-
-`app.js`:
-```js
-var container = require('dependable').container,
-    deps = container();
-
-deps.register("greetings", require("greetings"));
-deps.register("robot", require("robot"));
-
-deps.resolve(function (robot) {
-  console.log(robot.hello()); // "hello world"
+container.register('occupation', 'tax attorney');
+container.register('transport', {
+  type: 'station wagon',
+  material: 'wood-paneled'
 });
 ```
+
+## Register a dependency that depends on other dependencies
+
+When the argument is a function, the function's arguments are automatically
+populated with the correct dependencies, and the return value of the function
+is registered as the dependency:
+
+```js
+container.register('wanted', function (occupation, transport, legalStatus) {
+  var song = {};
+
+  song.chorus = function chorus() {
+    return [
+      'I\'m a ' + occupation,
+      'On a ' + transport.material + ' ' + transport.type + ' I ride',
+      'And I\'m ' + legalStatus.message
+    ].join('\n');
+  };
+
+  return song;
+});
+```
+
+## Register a dependency out-of-order
+
+`wanted` depends on a `legalStatus`, which hasn't been registered yet.
+Dependable resolves dependencies lazily, so we can define this dependency
+after-the-fact:
+
+```js
+container.register('legalStatus', {
+  warrants: [],
+  message: 'without outstanding warrants'
+});
+```
+
+## Resolve a dependency and use it
+
+Like with container.register, the function arguments are automatically resolved, along
+with their dependencies:
+
+```js
+container.resolve(function (wanted) {
+  /*
+   * I'm a tax attorney
+   * On a wood-paneled station wagon I ride
+   * And I'm without outstanding warrants
+   */
+  console.log(wanted.chorus());
+});
+```
+
+## Re-register dependencies
+
+As it stands, `wanted` returns boring, non-catchy lyrics. One way to change its behavior
+is to re-register its dependencies:
+
+```js
+container.register('occupation', 'cowboy');
+container.register('legalStatus', {
+  warrants: [
+    {
+      for: 'shooting the sheriff',
+      notes: 'did not shoot the deputy'
+    }
+  ],
+  message: 'wanted: dead or alive'
+});
+```
+
+This is really useful in a number of situations:
+
+1. A container can register configuration parameters for an application---for example, a port---and allows them to be changed later
+2. Dependencies can be replaced with mock objects in order to test other dependencies
+
+## Override dependencies at resolve time
+
+It's also possible to override dependencies at resolve time:
+
+```js
+var horse = {
+  type: 'horse',
+  material: 'steel'
+};
+
+container.resolve({ transport: horse }, function (wanted) {
+  /*
+   * I'm a cowboy
+   * On a steel horse I ride
+   * And I'm wanted: dead or alive
+   */
+  console.log(wanted.chorus());
+});
+```
+
+Sounds like a hit!
 
 ## Reference
 
@@ -50,52 +132,4 @@ deps.resolve(function (robot) {
 `container.get(name, overrides = {})` - returns a module by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registerd. 
 
 `container.resolve([overrides,] cb)` - calls cb like a dependency function, injecting any dependencies found in the signature
-
-```js
-deps.resolve(function (User) {
-  // do something with User
-});
-```
-
-## Helpful Tips
-
-### Using Dependable's Load
-
-You can load files or directories instead of registering by hand. See [Reference](#reference)
- 
-### Overriding Dependencies for Testing
-
-When testing, you usually want most dependencies loaded normally, but to mock others. You can use overrides for this. In the example below, `User` depends on `Friends.getInfo` for it's `getFriends` call. By setting `Friends` to `MockFriends` we can stub the dependency, but any other dependencies `User` has will be passed in normally.
-
-`bootstrap.js`:
-```js
-var container = require('dependable').container,
-    deps = container();
-
-deps.register("Friends", require('./Friends'));
-deps.register("User", require('./User'));
-
-module.exports = deps;
-```
-
-`test.js`:
-```js
-var deps = require('../lib/bootstrap.js');
-
-describe('User', function () {
-  it('should get friends plus info', function (done) {
-    var MockFriends = {
-      getInfo: function (id, cb) { cb(null, { some: 'info' }); }
-    };
-
-    //
-    // Override the 'Friends' dependency with your mock
-    //
-    var User = deps.get('User', { Friends: MockFriends });
-
-    user.getFriends('userId', function (err, friends) {
-      assert(!err);
-      done();
-    });
-```
 
