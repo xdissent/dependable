@@ -13,24 +13,33 @@ A minimalist dependency injection framework for javascript (fully tested for nod
 ### What is Dependency Injection
 In CommonJS, modules are normally defined like one of the following
 
-    exports.hello = -> "hello world"
-
-    module.exports =
-      hello: "hello world"
-
+```js
+var hello = module.exports = { hello: "hello world" };
+hello.hello = function () { return "hello world" };
+```
 
 If you have a dependency, you normally just require it. The `greetings` module needs some config to work. 
 
-    Greetings = require "greetings"
-    greetings = new Greetings("en")
+```js
+var Greetings = require("greetings"),
+    greetings = new Greetings("en");
 
-    module.exports = ->
-      hello: -> greetings.hello("world")
+module.exports = function () {
+  return {
+    hello: function () { return greetings.hello("world"); }
+  }
+};
+```
 
 Instead of requiring it, and setting the config inside our module, we can require that a pre-configured greetings instance be passed in to our function.
 
-    module.exports = (greetings) ->
-      hello: -> greetings.hello("world")
+```js
+module.exports = function (greetings) {
+  return {
+    hello: function () { return greetings.hello("world"); }
+  };
+};
+```
 
 This is "Dependency Injection". `greetings` is a dependency of our module. Its dependencies are "injected", meaning they are handed to us by whoever uses our module instead of us reaching out for them. 
 
@@ -46,28 +55,38 @@ You can pass in mock or alternate versions of a module if you want
 
 It is hard to remember how to construct and configure the dependencies when you want to use your module. This should be automatic.  Here is an example
 
-robot.coffee
+`robot.js`:
+```js
+module.exports = function (greetings) {
+  return {
+    hello: function () { return greetings.hello("world"); }
+  };
+};
+```
 
-    module.exports = (greetings) ->
-      hello: -> greetings.hello("world")
+`greetings.js`:
+```js
+module.exports = function (language) {
+  if (language === 'en') {
+    return {
+      hello: function (place) { return "hello " + friend; }
+    };
+  }
+  throw new Error('ENOTIMPLEMENTED');
+};
+```
 
-greetings.coffee
+`app.js`:
+```js
+// you have to do this in every file you want to use robot
+var Greetings = require("greetings"),
+    greetings = Greetings("en");
 
-    module.exports = (language) ->
-      ...
+var Robot = require("robot"),
+    robot = Robot(greetings);
 
-app.coffee
-
-    # you have to do this in every file you want to use robot
-    Greetings = require "greetings"
-    greetings = Greetings("en")
-
-    Robot = require "robot"
-    robot = Robot greetings
-
-    itsAliiiive = -> 
-      console.log robot.hello()
-
+console.log(Robot.hello()); // hello world
+```
 
 *This gets much worse* when your dependencies have dependencies of their own. You have to remember in which order to configure them so you can pass them into each other. 
 
@@ -75,29 +94,40 @@ app.coffee
 
 Dependable automates this process. In the following example, you don't need to register the modules in order, or do it more than once (it will work for dependencies of dependencies)
 
+`robot.js`:
+```js
+module.exports = function (greetings) {
+  return {
+    hello: function () { return greetings.hello("world"); }
+  };
+};
+```
 
-robot.coffee
+`greetings.js`:
 
-    module.exports = (greetings) ->
-      hello: -> greetings.hello("world")
+```js
+module.exports = function (language) {
+  if (language === 'en') {
+    return {
+      hello: function (place) { return "hello " + friend; }
+    };
+  }
+  throw new Error('ENOTIMPLEMENTED');
+};
+```
 
-greetings.coffee
+`app.js`:
+```js
+var container = require('dependable').container,
+    deps = container();
 
-    module.exports = (language) ->
-      ...
+deps.register("greetings", require("greetings"));
+deps.register("robot", require("robot"));
 
-app.coffee
-
-    # create the container, you only have to do this once.
-    container = require("dependable").container
-    deps = container()
-    deps.register "greetings", require("greetings")
-    deps.register "robot", require("robot")
-
-    robot = deps.get "robot"
-
-    itsAliiiive = -> 
-      console.log robot.hello()
+deps.resolve(function (robot) {
+  console.log(robot.hello()); // "hello world"
+});
+```
 
 ### Using Dependable's Load
 
@@ -107,22 +137,37 @@ You can load files or directories instead of registering by hand. See [Reference
 
 When testing, you usually want most dependencies loaded normally, but to mock others. You can use overrides for this. In the example below, `User` depends on `Friends.getInfo` for it's `getFriends` call. By setting `Friends` to `MockFriends` we can stub the dependency, but any other dependencies `User` has will be passed in normally.
 
-    # boostrap.coffee
-    deps = container()
-    deps.register "Friends", require('./Friends')
-    deps.register "User", require('./User')
+`bootstrap.js`:
+```js
+var container = require('dependable').container,
+    deps = container();
 
-    # test.coffee
-    describe 'User', ->
-      it 'should get friends plus info', (done) ->
+deps.register("Friends", require('./Friends'));
+deps.register("User", require('./User'));
 
-        MockFriends =
-          getInfo: (id, cb) -> cb null, {some:"info"}
+module.exports = deps;
+```
 
-        User = deps.get "User", {Friends: MockFriends}
-        User.getFriends "userId", (err, friends) ->
-          # assertions
-          done()
+`test.js`:
+```js
+var deps = require('../lib/bootstrap.js');
+
+describe('User', function () {
+  it('should get friends plus info', function (done) {
+    var MockFriends = {
+      getInfo: function (id, cb) { cb(null, { some: 'info' }); }
+    };
+
+    //
+    // Override the 'Friends' dependency with your mock
+    //
+    var User = deps.get('User', { Friends: MockFriends });
+
+    user.getFriends('userId', function (err, friends) {
+      assert(!err);
+      done();
+    });
+```
 
 ## Reference
 
@@ -136,7 +181,9 @@ When testing, you usually want most dependencies loaded normally, but to mock ot
 
 `container.resolve([overrides,] cb)` - calls cb like a dependency function, injecting any dependencies found in the signature
 
-    deps.resolve (User) ->
-      # do something with User
-
+```js
+deps.resolve(function (User) {
+  // do something with User
+});
+```
 
