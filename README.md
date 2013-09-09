@@ -32,7 +32,7 @@ populated with the correct dependencies, and the return value of the function
 is registered as the dependency:
 
 ```js
-container.register('wanted', function (occupation, transport, legalStatus) {
+container.register('song', function (occupation, transport, legalStatus) {
   var song = {};
 
   song.chorus = function chorus() {
@@ -49,7 +49,7 @@ container.register('wanted', function (occupation, transport, legalStatus) {
 
 ## Register a dependency out-of-order
 
-`wanted` depends on a `legalStatus`, which hasn't been registered yet.
+`song` depends on a `legalStatus`, which hasn't been registered yet.
 Dependable resolves dependencies lazily, so we can define this dependency
 after-the-fact:
 
@@ -66,19 +66,19 @@ Like with container.register, the function arguments are automatically resolved,
 with their dependencies:
 
 ```js
-container.resolve(function (wanted) {
+container.resolve(function (song) {
   /*
    * I'm a tax attorney
    * On a wood-paneled station wagon I ride
    * And I'm without outstanding warrants
    */
-  console.log(wanted.chorus());
+  console.log(song.chorus());
 });
 ```
 
 ## Re-register dependencies
 
-As it stands, `wanted` returns boring, non-catchy lyrics. One way to change its behavior
+As it stands, `song` returns boring, non-catchy lyrics. One way to change its behavior
 is to re-register its dependencies:
 
 ```js
@@ -109,13 +109,13 @@ var horse = {
   material: 'steel'
 };
 
-container.resolve({ transport: horse }, function (wanted) {
+container.resolve({ transport: horse }, function (song) {
   /*
    * I'm a cowboy
    * On a steel horse I ride
    * And I'm wanted: dead or alive
    */
-  console.log(wanted.chorus());
+  console.log(song.chorus());
 });
 ```
 
@@ -129,7 +129,7 @@ Sounds like a hit!
 
 `container.load(fileOrFolder)` - Registers a file, using its file name as the name, or all files in a folder. Does not traverse subdirectories.
 
-`container.get(name, overrides = {})` - Returns a dependency by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registerd. 
+`container.get(name, overrides = {})` - Returns a dependency by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registered.
 
 `container.resolve(overrides={}, cb)` - Calls `cb` like a dependency function, injecting any dependencies found in the signature. Like `container.get`, this supports overrides.
 
