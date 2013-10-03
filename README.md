@@ -121,7 +121,7 @@ container.resolve({ transport: horse }, function (song) {
 
 ### Asynchronous dependencies
 
-Any of the dependencies may accept a special dependency named `done` to signal that it requires asynchronous loading. A callback will be injected which must be called after the dependency is loaded. Pass any errors and your resolved dependency to the callback. A callback must also be passed to `get()` to resolve asynchronous dependencies:
+Any of the dependencies may accept a special dependency named `done` as their final argument to signal that it requires asynchronous loading. A callback will be injected which must be called after the dependency is loaded. Pass any errors and your resolved dependency to the callback. A callback must also be passed to `get()` to resolve asynchronous dependencies:
 
 ```js
 container.register('song', function (title, lyrics, done) {
@@ -143,7 +143,7 @@ Sounds like a hit!
 
 ## API
 
-`container.register(name, function)` - Registers a dependency by name. `function` can be a function that takes dependencies and returns anything, or an object itself with no dependencies. If the function accepts an argument named `done`, a callback will be passed which **must** be called by the function. The callback accepts `error` and `result` arguments.
+`container.register(name, function)` - Registers a dependency by name. `function` can be a function that takes dependencies and returns anything, or an object itself with no dependencies. If the function's last argument is named `done`, a callback will be passed which **must** be called by the function. The callback accepts `error` and `result` arguments.
 
 `container.register(hash)` - Registers a hash of names and dependencies. This is useful for setting configuration constants.
 
