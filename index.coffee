@@ -127,16 +127,20 @@ exports.container = ->
       args = (results[req] for req in factory.required)
       if factory.async
         factory.resolving = true unless overrides?
-        return factory.func args..., (err, result) ->
+        args.push (err, result) ->
           return cb err if err?
           if not overrides?
             factory.instance = result
             factory.resolving = false
             resolver.emit name, result
           cb null, result
-      instance = factory.func args...
-      factory.instance = instance unless overrides?
-      cb null, instance
+      try
+        instance = factory.func args...
+      catch err
+        return cb err
+      if not factory.async
+        factory.instance = instance unless overrides?
+        cb null, instance
       
     return cb if factory.required.length is 0
     [factory.required..., cb]
@@ -210,8 +214,8 @@ exports.container = ->
     name = "__temp_#{tmp}"
     register name, func
     get name, overrides, (err, result) ->
+      delete factories[name] if factories[name]?
       throw err if err?
-      delete factories[name]
 
   container =
     get: get

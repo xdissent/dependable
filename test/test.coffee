@@ -390,6 +390,20 @@ describe 'inject', ->
         assert.ok err
         done()
 
+    it "should return errors thrown in sync dependencies", (done) ->
+      deps = container()
+      deps.register "one", -> throw new Error
+      deps.get "one", (err, result) ->
+        assert.ok err
+        done()
+
+    it "should return errors thrown in async dependencies", (done) ->
+      deps = container()
+      deps.register "one", (done) -> throw new Error
+      deps.get "one", (err, result) ->
+        assert.ok err
+        done()
+
     it 'should not resolve deps multiple times asynchronously', (done) ->
       deps = container()
       deps.register "a", (done) ->
