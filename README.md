@@ -119,17 +119,37 @@ container.resolve({ transport: horse }, function (song) {
 });
 ```
 
+### Asynchronous dependencies
+
+Any of the dependencies may accept a special dependency named `done` to signal that it requires asynchronous loading. A callback will be injected which must be called after the dependency is loaded. Pass any errors and your resolved dependency to the callback. A callback must also be passed to `get()` to resolve asynchronous dependencies:
+
+```js
+container.register('song', function (title, lyrics, done) {
+  lyrics.async(title, function (err, words) {
+    if (err) return done(err);
+    done(null, new Song(title, words));
+  });
+});
+
+container.get('song', function (err, song) {
+  if (err) return console.error('I don't know that tune');
+  console.log(song.chorus());
+})
+```
+
+
+
 Sounds like a hit!
 
 ## API
 
-`container.register(name, function)` - Registers a dependency by name. `function` can be a function that takes dependencies and returns anything, or an object itself with no dependencies.
+`container.register(name, function)` - Registers a dependency by name. `function` can be a function that takes dependencies and returns anything, or an object itself with no dependencies. If the function accepts an argument named `done`, a callback will be passed which **must** be called by the function. The callback accepts `error` and `result` arguments.
 
 `container.register(hash)` - Registers a hash of names and dependencies. This is useful for setting configuration constants.
 
-`container.load(fileOrFolder)` - Registers a file, using its file name as the name, or all files in a folder. Does not traverse subdirectories.
+`container.load(fileOrFolder, cb = null)` - Registers a file, using its file name as the name, or all files in a folder. Does not traverse subdirectories. Also accepts an optional callback which will be called with any errors after loading the file or folder asynchronously.
 
-`container.get(name, overrides = {})` - Returns a dependency by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registered.
+`container.get(name, overrides = {}, cb = null)` - Returns a dependency by name, with all dependencies injected. If you specify overrides, the dependency will be given those overrides instead of those registered. If you specify a callback, it will be called asynchronously with an `error` and `result` argument. If a callback is not given and any of the dependencies require asynchronous loading (by accepting a `done` argument), an error will be thrown.
 
 `container.resolve(overrides={}, cb)` - Calls `cb` like a dependency function, injecting any dependencies found in the signature. Like `container.get`, this supports overrides.
 

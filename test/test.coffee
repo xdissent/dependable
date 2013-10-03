@@ -105,13 +105,24 @@ describe 'inject', ->
     deps = container()
     deps.register "one", one
     deps.register "two", two
+    assert.throws ->
+      deps.get "one"
+    , Error
 
-    try
-      aone = deps.get "one"
-    catch e
-      err = e
+  it 'should throw error on deep circular dependency', ->
+    one = (two) -> two + 1
+    two = (three) -> one + 2
+    three = (four) -> one + 2
+    four = (one) -> one + 2
 
-    assert.ok err
+    deps = container()
+    deps.register "one", one
+    deps.register "two", two
+    deps.register "three", three
+    deps.register "four", four
+    assert.throws ->
+      deps.get "one"
+    , Error
 
   it "should NOT throw circular dependency error if two modules require the same thing", ->
     deps = container()
@@ -119,30 +130,22 @@ describe 'inject', ->
     deps.register "one", (name) -> name + " one"
     deps.register "two", (name) -> name + " two"
     deps.register "all", (one, two) -> one.name + " " + two.name
-
-    try
-      all = deps.get "all"
-    catch e
-      assert.ok false, "should not have thrown error"
+    assert.doesNotThrow ->
+      deps.get "all"
+    , "should not have thrown error"
 
   it "should throw error if it cant find dependency", ->
     deps = container()
-
-    try
+    assert.throws ->
       deps.get "one"
-    catch e
-      err = e
-
-    assert.ok err
+    , Error
 
   it "should throw error if it cant find dependency of dependency", ->
     deps = container()
     deps.register "one", (two) -> "one"
-    try
+    assert.throws ->
       deps.get "one"
-    catch e
-      err = e
-    assert.ok err
+    , Error
 
   it 'should let you get multiple dependencies at once, injector style', (done) ->
     deps = container()
@@ -298,5 +301,213 @@ describe 'inject', ->
   describe 'maybe', ->
     it 'should support objects/data instead of functions?'
     it 'should support optional dependencies?'
+
+  describe 'async', ->
+    it 'should get async deps', (done) ->
+      deps = container()
+      deps.register "a", (b, c, done) -> done null, b + c
+      deps.register "b", (done) -> done null, 1
+      deps.register "c", (b, done) -> done null, b + 1
+      deps.get "a", (err, a) ->
+        return done err if err?
+        assert.equal a, 3
+        done()
+
+    it 'should throw an error when synchronously getting async deps', ->
+      deps = container()
+      deps.register "a", (b, c, done) -> done null, b + c
+      deps.register "b", (done) -> done null, 1
+      deps.register "c", (b, done) -> done null, b + 1
+      deps.register "d", (a) -> a + 1
+      assert.throws ->
+        deps.get "a"
+      , Error
+      assert.throws ->
+        deps.get "d"
+      , Error
+
+    it 'should resolve async deps', (done) ->
+      deps = container()
+      deps.register "a", (b, c, done) -> done null, b + c
+      deps.register "b", (done) -> done null, 1
+      deps.register "c", (b, done) -> done null, b + 1
+      deps.resolve (a) ->
+        assert.equal a, 3
+        done()
+
+    it 'should throw error when resolving async with missing deps', ->
+      deps = container()
+      deps.register "a", (x, done) -> done null, x
+      assert.throws ->
+        deps.resolve (a) -> a
+
+    it 'should return error on circular dependency', (done) ->
+      one = (two) -> two + 1
+      two = (one) -> one + 2
+
+      deps = container()
+      deps.register "one", one
+      deps.register "two", two
+      deps.get "one", (err, result) ->
+        assert.ok err
+        done()
+
+    it 'should return error on deep circular dependency', (done) ->
+      one = (two) -> two + 1
+      two = (three) -> one + 2
+      three = (four) -> one + 2
+      four = (one) -> one + 2
+
+      deps = container()
+      deps.register "one", one
+      deps.register "two", two
+      deps.register "three", three
+      deps.register "four", four
+      deps.get "one", (err, result) ->
+        assert.ok err
+        done()
+
+    it "should NOT return circular dependency error if two modules require the same thing", (done) ->
+      deps = container()
+      deps.register "name", -> "bob"
+      deps.register "one", (name) -> name + " one"
+      deps.register "two", (name) -> name + " two"
+      deps.register "all", (one, two) -> one.name + " " + two.name
+      deps.get "all", (err, result) ->
+        assert.ok !err?
+        done()
+
+    it "should return error if it cant find dependency", (done) ->
+      deps = container()
+      deps.get "one", (err, result) ->
+        assert.ok err
+        done()
+
+    it "should return error if it cant find dependency of dependency", (done) ->
+      deps = container()
+      deps.register "one", (two) -> "one"
+      deps.get "one", (err, result) ->
+        assert.ok err
+        done()
+
+    it 'should not resolve deps multiple times asynchronously', (done) ->
+      deps = container()
+      deps.register "a", (done) ->
+        setTimeout ->
+          done null, {one: "one"}
+        , 10
+
+      orig = null
+      cb = (a) ->
+        if orig?
+          assert.equal orig, a
+          return done()
+        orig = a
+
+      deps.resolve cb
+      deps.resolve cb
+
+    describe 'cache', ->
+      it 'should re-use the same instance', (done) ->
+        deps = container()
+        deps.register "a", -> {one: "one"}
+        deps.get "a", (err, a) ->
+          return done err if err?
+          assert.deepEqual a, {one: "one"}
+          assert.notEqual a, {one: "one"}
+          deps.get "a", (err, a2) ->
+            assert.equal a, a2
+            done()
+
+    describe 'overrides', ->
+      it 'should override a dependency', (done) ->
+        deps = container()
+        deps.register "a", (b) -> value: b
+        deps.register "b", "b"
+        deps.get "a", {b: "henry"}, (err, a) ->
+          return done err if err?
+          assert.equal a.value, "henry"
+          done()
+
+      it 'should not cache when you override', (done) ->
+        deps = container()
+        deps.register "a", (b) -> value: b
+        deps.register "b", "b"
+
+        deps.get "a", {b: "henry"}, (err, overridenA) ->
+          return done err if err?
+          deps.get "a", (err, a) ->
+            return done err if err?
+            assert.notEqual a.value, "henry", 'it cached the override value'
+            assert.equal a.value, "b"
+            done()
+
+      it 'should ignore the cache when you override', (done) ->
+        deps = container()
+        deps.register "a", (b) -> value: b
+        deps.register "b", "b"
+
+        deps.get "a", (err, a) ->
+          return done err if err?
+          deps.get "a", {b: "henry"}, (err, overridenA) ->
+            return done err if err?
+            assert.notEqual overridenA.value, "b", 'it used the cached value'
+            assert.equal overridenA.value, "henry"
+            done()
+
+    describe 'file helpers', ->
+      it 'should let you register a file', (done) ->
+        afile = path.join os.tmpDir(), "A.js"
+        acode = """
+          module.exports = function() { return 'a' }
+        """
+
+        bfile = path.join os.tmpDir(), "B.js"
+        bcode = """
+          module.exports = function(A) { return A + 'b' }
+        """
+        fs.writeFile afile, acode, (err) ->
+          assert.ifError (err)
+          deps = container()
+          deps.load afile, (err) ->
+            return done err if err?
+            a = deps.get 'A'
+            assert.equal a, 'a'
+
+            fs.writeFile bfile, bcode, (err) ->
+              assert.ifError (err)
+              deps.load bfile, (err) ->
+                return done err if err?
+                b = deps.get 'B'
+                assert.equal b, 'ab'
+                done()
+
+      it 'should let you register a whole directory', (done) ->
+
+        dir = path.join os.tmpDir(), "testinject"
+
+        afile = path.join dir, "A.js"
+        acode = """
+          module.exports = function() { return 'a' }
+        """
+
+        bfile = path.join dir, "B.js"
+        bcode = """
+          module.exports = function(A) { return A + 'b' }
+        """
+
+        fs.mkdir dir, (err) ->
+          # ignore err, if it already exists
+          fs.writeFile afile, acode, (err) ->
+            assert.ifError (err)
+            fs.writeFile bfile, bcode, (err) ->
+              assert.ifError (err)
+
+              deps = container()
+              deps.load dir, (err) ->
+                return done err if err?
+                b = deps.get 'B'
+                assert.equal b, 'ab'
+                done()
 
 

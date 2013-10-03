@@ -1,12 +1,16 @@
 path = require 'path'
 fs = require 'fs'
+events = require 'events'
+async = require 'async'
 
 existsSync = fs.existsSync ? path.existsSync
+exists = fs.exists ? path.exists
 
 # simple dependency injection. No nesting, just pure simplicity
 exports.container = ->
 
   factories = {}
+  tmp = 0
 
 
   ## REGISTER / PARSE ################################################
@@ -24,22 +28,52 @@ exports.container = ->
     if not func? then throw new Error "cannot register null function"
     factories[name] = toFactory func
 
-  load = (file) ->
-    exists = existsSync file
-    if exists
+  loadSync = (file) ->
+    if existsSync file
       stats = fs.statSync file
       if stats.isDirectory() then return loaddir file
     loadfile file
 
-  loadfile = (file) ->
+  load = (file, cb) ->
+    return loadSync file unless cb?
+    exists file, (exists) ->
+      return loadfile file, cb unless exists
+      fs.stat file, (err, stats) ->
+        return cb err if err?
+        return loaddir file, cb if stats.isDirectory()
+        loadfile file, cb
+
+  loadfile = (file, cb) ->
     module = file.replace(/\.\w+$/, "")
 
     # Remove dashes from files and camelcase results
     name = path.basename(module).replace(/\-(\w)/g, (match, letter) -> letter.toUpperCase())
 
-    register name, require(module)
+    try
+      func = require module
+    catch err
+      return cb err if cb?
+      throw err
 
-  loaddir = (dir) ->
+    register name, func
+    cb null, func if cb?
+
+  loaddir = (dir, cb) ->
+    return loaddirSync dir unless cb?
+    fs.readdir dir, (err, filenames) ->
+      return cb err if err?
+      files = filenames.map (file) -> path.join dir, file
+      loaders = []
+      for file in files
+        do (file) ->
+          return unless file.match /\.(js|coffee)$/
+          loaders.push (cb) ->
+            fs.stat file, (err, stats) ->
+              return cb err if err? or not stats.isFile()
+              loadfile file, cb
+      async.parallel loaders, cb
+
+  loaddirSync = (dir) ->
     filenames = fs.readdirSync dir
     files = filenames.map (file) -> path.join dir, file
     for file in files
@@ -48,12 +82,11 @@ exports.container = ->
       if stats.isFile() then loadfile file
 
   toFactory = (func) ->
-    if typeof func is "function"
-      func: func
-      required: argList func
-    else
-      func: -> func
-      required: []
+    return required: [], func: (-> func) if typeof func isnt "function"
+    args = argList func
+    isAsync = args[args.length - 1] is "done"
+    args.pop() if isAsync
+    func: func, required: args, async: isAsync
 
   argList = (func) ->
     # match over multiple lines
@@ -64,12 +97,72 @@ exports.container = ->
 
   notEmpty = (a) -> a
 
+  get = (name, overrides, cb) ->
+    [cb, overrides] = [overrides, null] if typeof overrides is "function"
+    return getSync arguments... unless cb?
+    return cb new Error "cannot get dependency without a name" unless name?
+  
+    try
+      dependencies = autoDeps name, overrides
+    catch err
+      return cb err
+
+    async.auto dependencies, (err, results) ->
+      return cb err if err?
+      cb null, results[name]
+
+  depMissing = (name) -> new Error "dependency '#{name}' was not registered"
+
+  resolver = new events.EventEmitter
+
+  autoDep = (name, overrides) ->
+    factory = factories[name]
+    return null unless factory?
+    return ((cb) -> cb null, overrides[name]) if overrides?[name]?
+    cb = (cb, results) ->
+      if not overrides?
+        return cb null, factory.instance if factory.instance?
+        if factory.resolving
+          return resolver.once name, ((result) -> cb null, result)
+      args = (results[req] for req in factory.required)
+      if factory.async
+        factory.resolving = true unless overrides?
+        return factory.func args..., (err, result) ->
+          return cb err if err?
+          if not overrides?
+            factory.instance = result
+            factory.resolving = false
+            resolver.emit name, result
+          cb null, result
+      instance = factory.func args...
+      factory.instance = instance unless overrides?
+      cb null, instance
+      
+    return cb if factory.required.length is 0
+    [factory.required..., cb]
+
+  autoDeps = (name, overrides) ->
+    throw depMissing name unless factories[name]?
+    dependencies = {}
+    for dep in [name, allDeps(name, overrides)...]
+      dependencies[dep] ?= autoDep dep, overrides
+    dependencies
+
+  allDeps = (name, overrides) ->
+    throw depMissing name unless factories[name]?
+    return [] if overrides?[name]?
+    deps = factories[name].required.concat (allDeps dep for dep in factories[name].required)...
+    throw new Error "circular dependency with '#{name}'" if name in deps
+    deps.filter (dep, i, deps) -> deps.lastIndexOf(dep) is i
+          
+
   ## GET ########################################################
   # gives you a single dependency
 
   # recursively resolve it!
   # TODO add visitation / detect require loops
-  get = (name, overrides, visited = []) ->
+  getSync = (name, overrides, visited = []) ->
+    throw new Error "cannot get dependency without a name" unless name?
 
     isOverridden = overrides?
 
@@ -80,18 +173,21 @@ exports.container = ->
 
     factory = factories[name]
     if not factory?
-      throw new Error "dependency '#{name}' was not registered"
+      throw depMissing name
 
     # use the one you already created
     if factory.instance? and not isOverridden
       return factory.instance
+
+    if factory.async
+      throw new Error "dependency '#{name}' is asynchronous but was requested synchronously"
 
     # apply args to the right?
     dependencies = factory.required.map (name) ->
       if overrides?[name]?
         overrides?[name]
       else
-        get name, overrides, visited
+        getSync name, overrides, visited
 
     instance = factory.func dependencies...
 
@@ -110,8 +206,12 @@ exports.container = ->
     if not func
       func = overrides
       overrides = null
-    register "__temp", func
-    get "__temp", overrides
+    tmp = tmp + 1
+    name = "__temp_#{tmp}"
+    register name, func
+    get name, overrides, (err, result) ->
+      throw err if err?
+      delete factories[name]
 
   container =
     get: get
