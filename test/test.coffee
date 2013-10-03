@@ -421,6 +421,22 @@ describe 'inject', ->
       deps.resolve cb
       deps.resolve cb
 
+    it 'should return errors when asynchronously getting multiple times', (done) ->
+      deps = container()
+      deps.register "a", (done) ->
+        setTimeout ->
+          done new Error
+        , 10
+
+      once = false
+      cb = (err, a) ->
+        assert.ok err
+        done() if once
+        once = true
+
+      deps.get "a", cb
+      deps.get "a", cb
+
     describe 'cache', ->
       it 'should re-use the same instance', (done) ->
         deps = container()

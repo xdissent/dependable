@@ -122,17 +122,18 @@ exports.container = ->
     cb = (cb, results) ->
       if not overrides?
         return cb null, factory.instance if factory.instance?
-        if factory.resolving
-          return resolver.once name, ((result) -> cb null, result)
+        return resolver.once name, cb if factory.resolving
       args = (results[req] for req in factory.required)
       if factory.async
         factory.resolving = true unless overrides?
         args.push (err, result) ->
-          return cb err if err?
+          if err?
+            resolver.emit name, err, result unless overrides?
+            return cb err
           if not overrides?
             factory.instance = result
             factory.resolving = false
-            resolver.emit name, result
+            resolver.emit name, err, result
           cb null, result
       try
         instance = factory.func args...
