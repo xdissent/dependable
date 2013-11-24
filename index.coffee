@@ -10,8 +10,9 @@ exists = fs.exists ? path.exists
 exports.container = ->
 
   factories = {}
-  tmp = 0
 
+  # A counter for temporary names used in resolving dependencies.
+  resolveIndex = 0
 
   ## REGISTER / PARSE ################################################
 
@@ -28,12 +29,14 @@ exports.container = ->
     if not func? then throw new Error "cannot register null function"
     factories[name] = toFactory func
 
+  # Load a directory or file synchronously.
   loadSync = (file) ->
     if existsSync file
       stats = fs.statSync file
       if stats.isDirectory() then return loaddir file
     loadfile file
 
+  # Load a directory or file asynchronously.
   load = (file, cb) ->
     return loadSync file unless cb?
     exists file, (exists) ->
@@ -43,6 +46,7 @@ exports.container = ->
         return loaddir file, cb if stats.isDirectory()
         loadfile file, cb
 
+  # Load a file asynchronously, or synchronously if no callback provided.
   loadfile = (file, cb) ->
     module = file.replace(/\.\w+$/, "")
 
@@ -58,6 +62,7 @@ exports.container = ->
     register name, func
     cb null, func if cb?
 
+  # Load a directory asynchronously, or synchronously if no callback provided.
   loaddir = (dir, cb) ->
     return loaddirSync dir unless cb?
     fs.readdir dir, (err, filenames) ->
@@ -73,6 +78,7 @@ exports.container = ->
               loadfile file, cb
       async.parallel loaders, cb
 
+  # Load a directory synchronously.
   loaddirSync = (dir) ->
     filenames = fs.readdirSync dir
     files = filenames.map (file) -> path.join dir, file
@@ -97,6 +103,8 @@ exports.container = ->
 
   notEmpty = (a) -> a
 
+  # Fetch/resolve a dependency asynchronously, or synchronously if no callback
+  # provided.
   get = (name, overrides, cb) ->
     [cb, overrides] = [overrides, null] if typeof overrides is "function"
     return getSync arguments... unless cb?
@@ -113,39 +121,64 @@ exports.container = ->
 
   depMissing = (name) -> new Error "dependency '#{name}' was not registered"
 
+  # An event emitter to keep track of asynchronously resolved dependencies.
   resolver = new events.EventEmitter
 
+  # Create an `async.auto` compatible list of dependency names followed by an
+  # `async.auto` compatible resolver function.
   autoDep = (name, overrides) ->
     factory = factories[name]
     return null unless factory?
+
+    # If the dependency exists in the overrides, simply return a callback.
     return ((cb) -> cb null, overrides[name]) if overrides?[name]?
+
+    # `async.auto` callback
     cb = (cb, results) ->
       if not overrides?
+        # Return a pre-existing dependency instance if there is one.
         return cb null, factory.instance if factory.instance?
+        # If the dependency is already asynchronously resolving, return it once
+        # it is resolved.
         return resolver.once name, cb if factory.resolving
+
+      # Fetch the required dependency instances from the `async.auto` results.
       args = (results[req] for req in factory.required)
+
       if factory.async
+        # Flag this dependency as resolving
         factory.resolving = true unless overrides?
+
+        # Create a `done` callback for the asynchronous dependency.
         args.push (err, result) ->
           if err?
+            # Notify other async resolvers that this dependency has resolved.
             resolver.emit name, err, result unless overrides?
             return cb err
+
           if not overrides?
+            # Store asynchronous factory instance.
             factory.instance = result
             factory.resolving = false
+            # Notify other async resolvers that this dependency has resolved.
             resolver.emit name, err, result
           cb null, result
+
       try
+        # Create the dependency instance
         instance = factory.func args...
       catch err
         return cb err
       if not factory.async
+        # Store synchronous factory instance.
         factory.instance = instance unless overrides?
         cb null, instance
-      
+  
     return cb if factory.required.length is 0
     [factory.required..., cb]
 
+  # Create an `async.auto` compatible dependency map. Throws an exception if
+  # a specified dependency does not exist.
   autoDeps = (name, overrides) ->
     throw depMissing name unless factories[name]?
     dependencies = {}
@@ -153,6 +186,8 @@ exports.container = ->
       dependencies[dep] ?= autoDep dep, overrides
     dependencies
 
+  # Fetch the expanded, unique list of all dependencies for a given dependency.
+  # Checks for circular dependencies, throwing an exception if found.
   allDeps = (name, overrides) ->
     throw depMissing name unless factories[name]?
     return [] if overrides?[name]?
@@ -211,10 +246,16 @@ exports.container = ->
     if not func
       func = overrides
       overrides = null
-    tmp = tmp + 1
-    name = "__temp_#{tmp}"
+
+    # Create and register a temporary dependency, incrementing the resolveIndex
+    # to prevent name collisions if multiple resolves are called asynchronously.
+    resolveIndex = resolveIndex + 1
+    name = "__temp_#{resolveIndex}"
     register name, func
+
+    # Resolve the temporary dependency asynchronously.
     get name, overrides, (err, result) ->
+      # Remove the temporary dependency and throw any errors.
       delete factories[name] if factories[name]?
       throw err if err?
 
